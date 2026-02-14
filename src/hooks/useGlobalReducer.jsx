@@ -1,24 +1,89 @@
-// Import necessary hooks and functions from React.
-import { useContext, useReducer, createContext } from "react";
-import storeReducer, { initialStore } from "../store"  // Import the reducer and the initial state.
+import { useContext, useReducer, createContext, useEffect } from "react";
+import storeReducer, { initialStore } from "../store";
 
-// Create a context to hold the global state of the application
-// We will call this global state the "store" to avoid confusion while using local states
-const StoreContext = createContext()
+const StoreContext = createContext();
 
-// Define a provider component that encapsulates the store and warps it in a context provider to 
-// broadcast the information throught all the app pages and components.
 export function StoreProvider({ children }) {
-    // Initialize reducer with the initial state.
-    const [store, dispatch] = useReducer(storeReducer, initialStore())
-    // Provide the store and dispatch method to all child components.
-    return <StoreContext.Provider value={{ store, dispatch }}>
-        {children}
+
+  const storedFavorites = JSON.parse(
+    localStorage.getItem("pokemonFavorites")
+  );
+
+  const [store, dispatch] = useReducer(
+    storeReducer,
+    {
+      ...initialStore(),
+      favorites: storedFavorites || []
+    }
+  );
+
+  useEffect(() => {
+    localStorage.setItem(
+      "pokemonFavorites",
+      JSON.stringify(store.favorites)
+    );
+  }, [store.favorites]);
+
+  const getPokemon = async () => {
+    try {
+      const response = await fetch(
+        "https://pokeapi.co/api/v2/pokemon?limit=20"
+      );
+      const data = await response.json();
+
+      const detailedPokemon = await Promise.all(
+        data.results.map(async (pokemon) => {
+          const res = await fetch(pokemon.url);
+          const details = await res.json();
+
+          return {
+            id: details.id,
+            name: details.name,
+            sprite: details.sprites.front_default,
+            types: details.types.map(t => t.type.name),
+            attack: details.stats.find(
+              s => s.stat.name === "attack"
+            ).base_stat,
+            defense: details.stats.find(
+              s => s.stat.name === "defense"
+            ).base_stat
+          };
+        })
+      );
+
+      dispatch({
+        type: "set_pokemon",
+        payload: detailedPokemon
+      });
+
+    } catch (error) {
+      console.error("Error fetching Pokémon:", error);
+    }
+  };
+
+  const addFavorite = (pokemon) => {
+    dispatch({
+      type: "add_favorite",
+      payload: pokemon
+    });
+  };
+
+  const removeFavorite = (name) => {
+    dispatch({
+      type: "remove_favorite",
+      payload: name
+    });
+  };
+
+  return (
+    <StoreContext.Provider
+      value={{ store, getPokemon, addFavorite, removeFavorite }}
+    >
+      {children}
     </StoreContext.Provider>
+  );
 }
 
-// Custom hook to access the global state and dispatch function.
 export default function useGlobalReducer() {
-    const { dispatch, store } = useContext(StoreContext)
-    return { dispatch, store };
+  return useContext(StoreContext);
 }

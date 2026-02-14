@@ -1,16 +1,31 @@
-import rigoImageUrl from "../assets/img/rigo-baby.jpg";
-import useGlobalReducer from "../hooks/useGlobalReducer.jsx";
+import { useEffect } from "react";
+import useGlobalReducer from "../hooks/useGlobalReducer";
+import PokemonCard from "../components/PokemonCard";
 
 export const Home = () => {
 
-  const {store, dispatch} =useGlobalReducer()
+  const { store, getPokemon } = useGlobalReducer();
 
-	return (
-		<div className="text-center mt-5">
-			<h1>Hello Rigo!!</h1>
-			<p>
-				<img src={rigoImageUrl} />
-			</p>
-		</div>
-	);
-}; 
+  useEffect(() => {
+    getPokemon();
+  }, []);
+
+  return (
+    <div className="container mt-5 mb-5">
+
+      <h1 className="pokemon-main-title mb-5 text-center">
+        Pokémon Databank
+      </h1>
+
+      <div className="row g-4">
+        {store.pokemon.map((pokemon) => (
+          <PokemonCard
+            key={pokemon.id}
+            pokemon={pokemon}
+          />
+        ))}
+      </div>
+
+    </div>
+  );
+};
